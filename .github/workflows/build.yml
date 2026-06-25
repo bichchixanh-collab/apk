@@ -46,8 +46,15 @@ jobs:
 
       - name: Cai Buildozer va Cython
         run: |
-          pip install --upgrade pip
-          pip install buildozer==1.5.0 cython==0.29.36
+          python3 -m pip install --upgrade pip
+          python3 -m pip install buildozer==1.5.0 cython==0.29.36
+
+      - name: Xac minh buildozer da cai dung va goi duoc
+        run: |
+          echo "which python3: $(which python3)"
+          echo "which pip: $(which pip)"
+          python3 -m pip show buildozer
+          python3 -m buildozer --version
 
       - name: Don dep dung luong dia trong (runner GitHub co san nhieu thu nang khong can)
         run: |
@@ -93,7 +100,7 @@ jobs:
             done ) > resource_monitor.log &
           MONITOR_PID=$!
 
-          yes | buildozer -v android debug 2>&1 | tee buildozer_full_log.txt
+          yes | python3 -m buildozer -v android debug 2>&1 | tee buildozer_full_log.txt
           BUILD_EXIT=${PIPESTATUS[0]}
 
           kill $MONITOR_PID 2>/dev/null || true
