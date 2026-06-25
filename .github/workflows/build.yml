@@ -24,9 +24,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cai Python
+        id: setup_python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Ghi nho duong dan Python tuyet doi (tranh lech PATH giua cac buoc)
+        run: |
+          echo "PY=${{ steps.setup_python.outputs.python-path }}" >> "$GITHUB_ENV"
+          echo "Duong dan Python se dung xuyen suot: ${{ steps.setup_python.outputs.python-path }}"
 
       - name: Cai JDK 17 (Temurin)
         id: setup_java
@@ -46,15 +52,15 @@ jobs:
 
       - name: Cai Buildozer va Cython
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install buildozer==1.5.0 cython==0.29.36
+          "$PY" -m pip install --upgrade pip
+          "$PY" -m pip install buildozer==1.5.0 cython==0.29.36
 
       - name: Xac minh buildozer da cai dung va goi duoc
         run: |
+          echo "PY=$PY"
           echo "which python3: $(which python3)"
-          echo "which pip: $(which pip)"
-          python3 -m pip show buildozer
-          python3 -m buildozer --version
+          "$PY" -m pip show buildozer
+          "$PY" -m buildozer --version
 
       - name: Don dep dung luong dia trong (runner GitHub co san nhieu thu nang khong can)
         run: |
@@ -83,7 +89,9 @@ jobs:
         run: |
           echo "JAVA_HOME=$JAVA_HOME"
           java -version
-          python3 --version
+          echo "PY (dung de chay buildozer) = $PY"
+          "$PY" --version
+          echo "python3 he thong (KHONG dung de chay buildozer): $(which python3), $(python3 --version)"
           df -h .
           free -h
 
@@ -100,7 +108,7 @@ jobs:
             done ) > resource_monitor.log &
           MONITOR_PID=$!
 
-          yes | python3 -m buildozer -v android debug 2>&1 | tee buildozer_full_log.txt
+          yes | "$PY" -m buildozer -v android debug 2>&1 | tee buildozer_full_log.txt
           BUILD_EXIT=${PIPESTATUS[0]}
 
           kill $MONITOR_PID 2>/dev/null || true
