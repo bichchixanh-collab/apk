@@ -1,0 +1,89 @@
+name: Build APK
+
+# Tu dong chay khi push code len nhanh main, hoac bam nut "Run workflow"
+# thu cong trong tab Actions cua GitHub.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    # Gioi han toi da 90 phut - neu vuot qua nghia la co cho bi treo
+    # thuc su (vd mang cham), GitHub se huy va bao loi ro rang thay vi
+    # cho ngam (mac dinh GitHub la 360 phut, qua dai de phat hien treo).
+    timeout-minutes: 90
+    env:
+      # Tat buffer cua Python de log hien thi NGAY LAP TUC (realtime),
+      # tranh truong hop tien trinh bi treo/giet ma khong kip in dong
+      # loi cuoi cung ra man hinh (day la nghi van chinh cua lan loi truoc).
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Lay code tu repository
+        uses: actions/checkout@v4
+
+      - name: Cai Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cai JDK 17 (Temurin)
+        id: setup_java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cai cac thu vien he thong can cho Buildozer (Android build)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q \
+            git zip unzip autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            cmake libffi-dev libssl-dev automake build-essential \
+            ccache
+
+      - name: Cai Buildozer va Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer==1.5.0 cython==0.29.36
+
+      - name: Cache thu muc build cua Buildozer (lan sau build nhanh hon)
+        uses: actions/cache@v4
+        with:
+          path: |
+            .buildozer
+            ~/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: In thong tin moi truong (de doi chieu khi debug)
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME"
+          java -version
+          python3 --version
+          df -h .
+          free -h
+
+      - name: Build APK (debug, log day du khong bi cat)
+        run: |
+          set -o pipefail
+          yes | buildozer -v android debug 2>&1 | tee buildozer_full_log.txt
+        shell: bash
+
+      - name: Luu log day du (de xem ngay ca khi build that bai)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-full-log
+          path: buildozer_full_log.txt
+          if-no-files-found: warn
+
+      - name: Tai file APK len (xem trong tab Artifacts sau khi chay xong)
+        uses: actions/upload-artifact@v4
+        with:
+          name: viethoa-tool-apk
+          path: bin/*.apk
+          if-no-files-found: error
