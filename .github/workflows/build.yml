@@ -49,15 +49,28 @@ jobs:
           pip install --upgrade pip
           pip install buildozer==1.5.0 cython==0.29.36
 
+      - name: Don dep dung luong dia trong (runner GitHub co san nhieu thu nang khong can)
+        run: |
+          echo "--- Dung luong dia TRUOC khi don ---"
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/.ghcup /usr/local/share/boost \
+                      "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+          sudo docker image prune -a -f 2>/dev/null || true
+          echo "--- Dung luong dia SAU khi don ---"
+          df -h /
+
       - name: Cache thu muc build cua Buildozer (lan sau build nhanh hon)
         uses: actions/cache@v4
         with:
           path: |
             .buildozer
             ~/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          # Doi key sang v2 de bo qua cache cu (nghi van cache bi luu
+          # dang khi build lan truoc bi chet giua luc giai nen SDK).
+          key: buildozer-v2-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            buildozer-${{ runner.os }}-
+            buildozer-v2-${{ runner.os }}-
 
       - name: In thong tin moi truong (de doi chieu khi debug)
         run: |
@@ -70,8 +83,30 @@ jobs:
       - name: Build APK (debug, log day du khong bi cat)
         run: |
           set -o pipefail
+
+          # Chay tien trinh giam sat dung luong dia + RAM moi 20 giay
+          # trong nen, ghi vao file rieng - de biet CHINH XAC luc nao
+          # bi het tai nguyen (neu co), thay vi doan mo.
+          ( while true; do
+              echo "[$(date '+%H:%M:%S')] $(df -h / | tail -1) | $(free -h | grep Mem)"
+              sleep 20
+            done ) > resource_monitor.log &
+          MONITOR_PID=$!
+
           yes | buildozer -v android debug 2>&1 | tee buildozer_full_log.txt
+          BUILD_EXIT=${PIPESTATUS[0]}
+
+          kill $MONITOR_PID 2>/dev/null || true
+          exit $BUILD_EXIT
         shell: bash
+
+      - name: Luu log giam sat tai nguyen (RAM/dia theo thoi gian)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-monitor-log
+          path: resource_monitor.log
+          if-no-files-found: warn
 
       - name: Luu log day du (de xem ngay ca khi build that bai)
         if: always()
