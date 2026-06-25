@@ -1,0 +1,55 @@
+name: Build APK
+
+# Tu dong chay khi push code len nhanh main, hoac bam nut "Run workflow"
+# thu cong trong tab Actions cua GitHub.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Lay code tu repository
+        uses: actions/checkout@v4
+
+      - name: Cai Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cai cac thu vien he thong can cho Buildozer (Android build)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y -q \
+            git zip unzip openjdk-17-jdk python3-pip autoconf libtool \
+            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libtinfo5 cmake libffi-dev libssl-dev automake build-essential \
+            ccache
+
+      - name: Cai Buildozer va Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer==1.5.0 cython==0.29.36
+
+      - name: Cache thu muc build cua Buildozer (lan sau build nhanh hon)
+        uses: actions/cache@v4
+        with:
+          path: |
+            .buildozer
+            ~/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: Build APK (debug)
+        run: |
+          yes | buildozer android debug
+
+      - name: Tai file APK len (xem trong tab Artifacts sau khi chay xong)
+        uses: actions/upload-artifact@v4
+        with:
+          name: viethoa-tool-apk
+          path: bin/*.apk
+          if-no-files-found: error
