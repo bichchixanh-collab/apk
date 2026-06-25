@@ -23,6 +23,19 @@ jobs:
       - name: Lay code tu repository
         uses: actions/checkout@v4
 
+      - name: Don dep dung luong dia trong (chay TRUOC khi cai Python/Java de tranh xoa nham)
+        run: |
+          echo "--- Dung luong dia TRUOC khi don ---"
+          df -h /
+          # Chi xoa nhung thu muc CHAC CHAN khong lien quan toolchain
+          # se cai o cac buoc sau (KHONG dong vao /opt/hostedtoolcache
+          # - do la noi setup-python/setup-java se cai vao).
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/.ghcup /usr/local/share/boost 2>/dev/null || true
+          sudo docker image prune -a -f 2>/dev/null || true
+          echo "--- Dung luong dia SAU khi don ---"
+          df -h /
+
       - name: Cai Python
         id: setup_python
         uses: actions/setup-python@v5
@@ -61,17 +74,6 @@ jobs:
           echo "which python3: $(which python3)"
           "$PY" -m pip show buildozer
           "$PY" -m buildozer --version
-
-      - name: Don dep dung luong dia trong (runner GitHub co san nhieu thu nang khong can)
-        run: |
-          echo "--- Dung luong dia TRUOC khi don ---"
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /usr/local/.ghcup /usr/local/share/boost \
-                      "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
-          sudo docker image prune -a -f 2>/dev/null || true
-          echo "--- Dung luong dia SAU khi don ---"
-          df -h /
 
       - name: Cache thu muc build cua Buildozer (lan sau build nhanh hon)
         uses: actions/cache@v4
